@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEGA Public Audio Library</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+          },
+          animation: {
+            'spin-slow': 'spin 8s linear infinite',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- MEGAJS Library from CDN (UMD version) -->
+  <script src="https://cdn.jsdelivr.net/npm/megajs@1.3.0/dist/main.browser-umd.js"></script>
+
+  <style>
+    /* Custom Scrollbar for sleek modern look */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* CSS Keyframes for a custom visualizer and music note bounce */
+    @keyframes barBounce {
+      0% { height: 4px; }
+      100% { height: 28px; }
+    }
+    .visualizer-bar {
+      animation: barBounce 0.8s ease-in-out infinite alternate;
+    }
+    .visualizer-bar:nth-child(1) { animation-delay: 0.1s; animation-duration: 0.6s; }
+    .visualizer-bar:nth-child(2) { animation-delay: 0.3s; animation-duration: 0.9s; }
+    .visualizer-bar:nth-child(3) { animation-delay: 0.0s; animation-duration: 0.7s; }
+    .visualizer-bar:nth-child(4) { animation-delay: 0.4s; animation-duration: 1.0s; }
+    .visualizer-bar:nth-child(5) { animation-delay: 0.2s; animation-duration: 0.8s; }
+    .visualizer-bar:nth-child(6) { animation-delay: 0.5s; animation-duration: 0.5s; }
+
+    /* Glassmorphism utility */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+  </style>
+</head>
+<body class="h-full bg-[#05070f] text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-violet-500 selection:text-white">
+
+  <!-- Main Ambient Glow Backgrounds -->
+  <div class="fixed top-0 left-1/4 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+  <div class="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none -z-10"></div>
+
+  <div class="min-h-screen flex flex-col justify-between pb-12">
+    
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-30 w-full glass-panel border-b border-slate-900/60 shadow-lg px-4 sm:px-8 py-4">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Logo and Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <i data-lucide="music-4" class="w-5 h-5 text-white animate-bounce-slow"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">MEGA Audio Browser</h1>
+            <p class="text-xs text-slate-400">Scan, preview, and download folder files</p>
+          </div>
+        </div>
+
+        <!-- Quick Info / Folder link settings -->
+        <div class="flex items-center gap-2 text-sm">
+          <button id="toggleSettingsBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors">
+            <i data-lucide="settings" class="w-4 h-4 text-violet-400"></i>
+            <span>Configure Link</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Settings Drawer (Hidden by default) -->
+    <div id="settingsPanel" class="hidden max-w-7xl mx-auto w-full px-4 sm:px-8 mt-6">
+      <div class="p-6 rounded-2xl glass-panel border border-violet-500/20 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-16 -top-16 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl"></div>
+        <h3 class="text-base font-semibold text-slate-200 mb-2 flex items-center gap-2">
+          <i data-lucide="link" class="w-4 h-4 text-violet-400"></i>
+          Active Folder Link Configuration
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">You can load any public MEGA folder link. Make sure the folder contains public MP3 files.</p>
+        <div class="flex flex-col md:flex-row gap-3">
+          <input type="text" id="megaFolderUrlInput" 
+                 value="https://mega.nz/folder/to0hEIYC#ge5kUCeJ4N87Em90abwTrw" 
+                 placeholder="https://mega.nz/folder/to0hEIYC#ge5kUCeJ4N87Em90abwTrw" 
+                 class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all">
+          <button id="loadFolderBtn" class="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium text-sm transition-all shadow-md shadow-violet-600/15 flex items-center justify-center gap-2">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Load Folder</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto w-full px-4 sm:px-8 flex-1 mt-6">
+
+      <!-- Directory Stats Top Banner -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Directory Card -->
+        <div class="p-5 rounded-2xl glass-panel relative overflow-hidden flex items-center gap-4 col-span-1 md:col-span-2">
+          <div class="w-12 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
+            <i data-lucide="folder-open" class="w-6 h-6 text-violet-400"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Active Directory</span>
+                <h2 id="folderNameDisplay" class="text-base font-bold text-slate-200 truncate mt-0.5">Loading folder details...</h2>
+              </div>
+              <!-- Folder Navigation Controls -->
+              <div id="folderNavControls" class="hidden flex items-center gap-2 mt-1 sm:mt-0 shrink-0">
+                <button onclick="goBack()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 font-semibold flex items-center gap-1.5 transition-all shadow-sm">
+                  <i data-lucide="arrow-left" class="w-3.5 h-3.5 text-violet-400"></i>
+                  <span>Go Back</span>
+                </button>
+                <button onclick="goToRoot()" class="px-3 py-1.5 rounded-xl bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 hover:border-violet-500/40 text-xs text-violet-300 font-semibold flex items-center gap-1.5 transition-all shadow-sm">
+                  <i data-lucide="home" class="w-3.5 h-3.5 text-violet-400"></i>
+                  <span>Start Folder</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Stats Card -->
+        <div class="p-5 rounded-2xl glass-panel relative overflow-hidden flex items-center gap-4">
+          <div class="w-12 h-10 rounded-xl bg-violet-950/30 border border-violet-900/40 flex items-center justify-center">
+            <i data-lucide="music" class="w-6 h-6 text-indigo-400"></i>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Total Audio Files</span>
+            <div class="flex items-baseline gap-1.5 mt-0.5">
+              <span id="totalFilesDisplay" class="text-2xl font-black text-white">0</span>
+              <span class="text-xs text-slate-400">MP3 files</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls and Browsing Section -->
+      <div class="rounded-2xl glass-panel shadow-2xl border border-slate-900 overflow-hidden">
+        
+        <!-- Interactive Filters Bar -->
+        <div class="p-4 sm:p-6 bg-slate-950/40 border-b border-slate-900/80 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+          <!-- Search Box -->
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+            </span>
+            <input type="text" id="searchInput" placeholder="Search track name..." 
+                   class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-11 pr-10 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all">
+            <button id="clearSearchBtn" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Sorters & Page Controls -->
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Sort dropdown -->
+            <div class="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+              <span class="text-xs text-slate-400 flex items-center gap-1">
+                <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i> Sort:
+              </span>
+              <select id="sortSelect" class="bg-transparent border-none text-xs text-slate-200 font-medium focus:outline-none cursor-pointer pr-1">
+                <option value="name-asc" selected>Alphabetical (A - Z)</option>
+                <option value="name-desc">Alphabetical (Z - A)</option>
+                <option value="size-desc">Size (Large - Small)</option>
+                <option value="size-asc">Size (Small - Large)</option>
+              </select>
+            </div>
+
+            <!-- Page Size dropdown -->
+            <div class="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+              <span class="text-xs text-slate-400 flex items-center gap-1">
+                <i data-lucide="list" class="w-3.5 h-3.5"></i> View:
+              </span>
+              <select id="pageSizeSelect" class="bg-transparent border-none text-xs text-slate-200 font-medium focus:outline-none cursor-pointer pr-1">
+                <option value="25">25 per page</option>
+                <option value="50" selected>50 per page</option>
+                <option value="100">100 per page</option>
+                <option value="250">250 per page</option>
+                <option value="all">View All</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scanning / Loading State overlay -->
+        <div id="loadingOverlay" class="py-20 px-6 flex flex-col items-center justify-center text-center">
+          <div class="relative mb-6">
+            <div class="w-16 h-16 rounded-full border-4 border-violet-500/10 border-t-violet-500 animate-spin"></div>
+            <i data-lucide="cloud-lightning" class="w-6 h-6 text-violet-400 absolute inset-0 m-auto animate-pulse"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-200">Scanning MEGA Folder</h3>
+          <p id="loadingStatusText" class="text-sm text-slate-400 mt-2 max-w-md">Connecting to servers and loading secure file metadata...</p>
+          
+          <!-- Detailed Loading Logs -->
+          <div class="mt-6 w-full max-w-lg bg-slate-950/80 rounded-xl p-4 border border-slate-800 text-left font-mono text-xs text-slate-400 overflow-y-auto max-h-40" id="loadingLogs">
+            <div>&gt; Initializing application...</div>
+          </div>
+        </div>
+
+        <!-- Failure State overlay -->
+        <div id="errorOverlay" class="hidden py-16 px-6 flex flex-col items-center justify-center text-center">
+          <div class="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500">
+            <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-200">Unable to Fetch Directory</h3>
+          <p id="errorMessageDisplay" class="text-sm text-slate-400 mt-2 max-w-lg">An error occurred while attempting to contact MEGA servers. Please check your internet connection or the public link provided.</p>
+          <div class="mt-6 flex flex-wrap gap-3 justify-center">
+            <button id="retryBtn" class="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium text-sm transition-all shadow-md flex items-center gap-2">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Retry Scanning</span>
+            </button>
+            <button id="toggleSettingsErrorBtn" class="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-sm font-medium transition-colors text-slate-300">
+              Change Folder URL
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty Results State -->
+        <div id="emptyOverlay" class="hidden py-20 px-6 flex flex-col items-center justify-center text-center">
+          <div class="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center mb-4">
+            <i data-lucide="music-off" class="w-6 h-6 text-slate-500"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-300">No tracks match your query</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm">Try adjusting your spelling or using different keywords to find files.</p>
+        </div>
+
+        <!-- Browsing Directory Table & Grid -->
+        <div id="filesContent" class="hidden">
+          <div class="overflow-x-auto w-full">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950/20 border-b border-slate-900/60 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                  <th class="py-4 px-6 w-12 text-center">#</th>
+                  <th class="py-4 px-4 sm:px-6">Track Name</th>
+                  <th class="py-4 px-4 text-center hidden md:table-cell w-28">File Size</th>
+                  <th class="py-4 px-6 text-right w-64">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="filesTableBody" class="divide-y divide-slate-900/50">
+                <!-- Dynamically Rendered Rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Pagination controls -->
+          <div class="p-4 sm:p-6 bg-slate-950/20 border-t border-slate-900/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div id="paginationInfo" class="text-xs text-slate-400">
+              Showing <span class="font-semibold text-slate-200">1</span> to <span class="font-semibold text-slate-200">50</span> of <span class="font-semibold text-slate-200">120</span> tracks
+            </div>
+            <div class="flex items-center gap-1.5" id="paginationControls">
+              <!-- Page items render here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto w-full px-4 sm:px-8 mt-12 text-center text-xs text-slate-500">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 border-t border-slate-900">
+        <p>© 2026 Client-side Cloud Interface. All processing, decryption, and media playback run 100% locally inside your browser.</p>
+        <p class="flex items-center gap-1.5">
+          Powered by <a href="https://github.com/qgustavor/mega" target="_blank" rel="noopener noreferrer" class="text-violet-400 hover:text-violet-300 underline font-medium">megajs</a>
+        </p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- PREVIEW POPUP WINDOW (MODAL OVERLAY) -->
+  <div id="previewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl opacity-0 pointer-events-none transition-opacity duration-300">
+    <!-- Close wrapper click-handler -->
+    <div id="modalCloseBg" class="absolute inset-0 cursor-default"></div>
+    
+    <!-- Modal Dialog Frame -->
+    <div class="w-full max-w-xl bg-slate-900/80 border border-slate-800/80 shadow-2xl rounded-3xl p-6 sm:p-8 relative overflow-hidden glass-panel scale-95 transition-transform duration-300" id="modalDialogBox">
+      <!-- Glow effect inside -->
+      <div class="absolute -left-20 -bottom-20 w-44 h-44 bg-violet-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -right-20 -top-20 w-44 h-44 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Close icon button -->
+      <button id="modalCloseBtn" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center border border-slate-800/60 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Player Content -->
+      <div class="flex flex-col items-center text-center">
+        <!-- Badge -->
+        <span class="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-6">Currently Playing</span>
+
+        <!-- Rotating Vinyl / Wave animation container -->
+        <div class="w-40 h-40 sm:w-48 sm:h-40 flex items-center justify-center mb-6 relative">
+          <!-- Bouncing Visualizer Bars when audio is playing -->
+          <div id="visualizerContainer" class="flex items-end justify-center gap-1.5 h-16 w-full opacity-40 transition-opacity">
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+            <div class="visualizer-bar w-1.5 bg-gradient-to-t from-violet-500 to-indigo-400 rounded-full"></div>
+          </div>
+
+          <!-- Spinning Vinyl Disc placeholder in center for gorgeous aesthetic -->
+          <div class="absolute w-24 h-24 rounded-full border-4 border-slate-950/80 bg-slate-950 flex items-center justify-center shadow-lg shadow-violet-950/40">
+            <div id="vinylDisc" class="w-20 h-24 rounded-full bg-slate-900 border-2 border-slate-800 flex items-center justify-center relative animate-spin-slow">
+              <!-- Grooves -->
+              <div class="absolute inset-2 border border-slate-800/40 rounded-full"></div>
+              <div class="absolute inset-4 border border-slate-800/40 rounded-full"></div>
+              <!-- Label -->
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-slate-950"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track Info -->
+        <h3 id="modalTrackTitle" class="text-lg font-extrabold text-slate-100 max-w-md line-clamp-2 px-2">Track Title.mp3</h3>
+        <p id="modalTrackSize" class="text-xs text-slate-400 mt-1 mb-6">Size: 0.0 MB</p>
+
+        <!-- HTML5 Audio Element -->
+        <div class="w-full bg-slate-950/90 rounded-2xl p-4 border border-slate-800 mb-6">
+          <audio id="audioPlayer" controls class="w-full"></audio>
+        </div>
+
+        <!-- Controls / Navigation footer -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full mt-2">
+          <!-- Back to Page button -->
+          <button id="backToPageBtn" class="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-semibold text-sm transition-all flex items-center justify-center gap-2">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-slate-400"></i>
+            <span>Back to Page</span>
+          </button>
+          
+          <!-- Secondary download button inside player -->
+          <button id="modalDownloadBtn" class="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center justify-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download MP3</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-md w-full pointer-events-none"></div>
+
+  <!-- CLIENT-SIDE APPLICATION SCRIPT -->
+  <script>
+    // --- Application State ---
+    const state = {
+      allFiles: [],         // Raw array of file objects scanned from MEGA folder
+      filteredFiles: [],    // Filtered, searched, and sorted files array
+      currentPage: 1,       // Active pagination index
+      pageSize: 50,         // Rows loaded per view
+      searchQuery: '',      // Active keyword filter
+      sortBy: 'name-asc',   // Active sorter token: name-asc, name-desc, size-asc, size-desc
+      loading: true,        // Scanner flag
+      error: null,          // Connection failure context string
+      activeDownloads: {},  // Map of file names to current progress percentage (0 - 100)
+      blobCache: {},        // Map of file names to decrypted browser object URLs
+      previewingFile: null, // Active preview file object
+      folderUrl: 'https://mega.nz/folder/to0hEIYC#ge5kUCeJ4N87Em90abwTrw', // Loaded folder URL
+      folderName: '',       // Decoded public directory name
+      rootFolder: null,     // Top-level loaded MEGA folder object
+      currentFolder: null,  // Active directory object being browsed
+      navigationHistory: [] // Stack of parent folder objects for back navigation
+    };
+
+    // --- DOM Elements Cache ---
+    const elements = {
+      megaFolderUrlInput: document.getElementById('megaFolderUrlInput'),
+      loadFolderBtn: document.getElementById('loadFolderBtn'),
+      toggleSettingsBtn: document.getElementById('toggleSettingsBtn'),
+      toggleSettingsErrorBtn: document.getElementById('toggleSettingsErrorBtn'),
+      settingsPanel: document.getElementById('settingsPanel'),
+      folderNameDisplay: document.getElementById('folderNameDisplay'),
+      totalFilesDisplay: document.getElementById('totalFilesDisplay'),
+      searchInput: document.getElementById('searchInput'),
+      clearSearchBtn: document.getElementById('clearSearchBtn'),
+      sortSelect: document.getElementById('sortSelect'),
+      pageSizeSelect: document.getElementById('pageSizeSelect'),
+      loadingOverlay: document.getElementById('loadingOverlay'),
+      loadingStatusText: document.getElementById('loadingStatusText'),
+      loadingLogs: document.getElementById('loadingLogs'),
+      errorOverlay: document.getElementById('errorOverlay'),
+      errorMessageDisplay: document.getElementById('errorMessageDisplay'),
+      emptyOverlay: document.getElementById('emptyOverlay'),
+      filesContent: document.getElementById('filesContent'),
+      filesTableBody: document.getElementById('filesTableBody'),
+      paginationInfo: document.getElementById('paginationInfo'),
+      paginationControls: document.getElementById('paginationControls'),
+      retryBtn: document.getElementById('retryBtn'),
+      previewModal: document.getElementById('previewModal'),
+      modalDialogBox: document.getElementById('modalDialogBox'),
+      modalCloseBg: document.getElementById('modalCloseBg'),
+      modalCloseBtn: document.getElementById('modalCloseBtn'),
+      backToPageBtn: document.getElementById('backToPageBtn'),
+      modalTrackTitle: document.getElementById('modalTrackTitle'),
+      modalTrackSize: document.getElementById('modalTrackSize'),
+      audioPlayer: document.getElementById('audioPlayer'),
+      modalDownloadBtn: document.getElementById('modalDownloadBtn'),
+      visualizerContainer: document.getElementById('visualizerContainer'),
+      vinylDisc: document.getElementById('vinylDisc'),
+      toastContainer: document.getElementById('toastContainer')
+    };
+
+    // --- Logger helper ---
+    function logToScreen(message) {
+      const row = document.createElement('div');
+      row.innerHTML = `<span class="text-violet-400">&gt;</span> ${message}`;
+      elements.loadingLogs.appendChild(row);
+      elements.loadingLogs.scrollTop = elements.loadingLogs.scrollHeight;
+    }
+
+    // --- Floating Toast notifications ---
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `p-4 rounded-xl shadow-lg border flex items-center gap-3 transform translate-y-2 opacity-0 transition-all duration-300 pointer-events-auto cursor-default glass-panel`;
+      
+      let borderClass = 'border-slate-800';
+      let icon = 'info';
+      let iconColor = 'text-blue-400';
+      
+      if (type === 'success') {
+        borderClass = 'border-emerald-500/20';
+        icon = 'check-circle';
+        iconColor = 'text-emerald-400';
+      } else if (type === 'error') {
+        borderClass = 'border-rose-500/20';
+        icon = 'alert-octagon';
+        iconColor = 'text-rose-400';
+      } else if (type === 'warning') {
+        borderClass = 'border-amber-500/20';
+        icon = 'alert-triangle';
+        iconColor = 'text-amber-400';
+      }
+      
+      toast.classList.add(borderClass);
+      
+      toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-5 h-5 ${iconColor} shrink-0"></i>
+        <div class="text-xs font-semibold text-slate-200 flex-1">${message}</div>
+      `;
+      
+      elements.toastContainer.appendChild(toast);
+      lucide.createIcons();
+      
+      // Animate entry
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+      
+      // Auto-remove
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-[-10px]');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }, 4000);
+    }
+
+    // --- Format bytes helper ---
+    function formatBytes(bytes, decimals = 2) {
+      if (!bytes) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // --- Format highlighted match ---
+    function highlightQuery(text, query) {
+      if (!query) return text;
+      const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<mark class="bg-violet-500/30 text-white font-medium px-0.5 rounded-sm">$1</mark>');
+    }
+
+    // --- Recursive helper to find all audio files in any subfolders ---
+    function getAllFilesRecursive(folder) {
+      let results = [];
+      if (!folder || !folder.children) return results;
+      for (const child of folder.children) {
+        if (child.directory) {
+          results = results.concat(getAllFilesRecursive(child));
+        } else if (child.name && child.name.toLowerCase().endsWith('.mp3')) {
+          results.push(child);
+        }
+      }
+      return results;
+    }
+
+    // --- Recursive helper to count audio files under a directory ---
+    function countFilesRecursive(folder) {
+      if (!folder || !folder.children) return 0;
+      let count = 0;
+      for (const child of folder.children) {
+        if (child.directory) {
+          count += countFilesRecursive(child);
+        } else if (child.name && child.name.toLowerCase().endsWith('.mp3')) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // --- Load Folder from MEGA ---
+    async function loadMegaFolder(url) {
+      state.loading = true;
+      state.error = null;
+      state.allFiles = [];
+      state.filteredFiles = [];
+      state.currentPage = 1;
+      
+      elements.loadingOverlay.classList.remove('hidden');
+      elements.errorOverlay.classList.add('hidden');
+      elements.filesContent.classList.add('hidden');
+      elements.emptyOverlay.classList.add('hidden');
+      
+      elements.loadingLogs.innerHTML = '<div>&gt; Initializing MEGA scanner...</div>';
+      
+      elements.folderNameDisplay.innerText = "Loading details...";
+      elements.totalFilesDisplay.innerText = "0";
+
+      logToScreen(`Connecting to API client...`);
+      
+      try {
+        if (!window.mega) {
+          throw new Error("MEGAJS library is not loaded properly from CDN. Please check blockers.");
+        }
+        
+        // Overrides userAgent parameter globally to secure browser operation
+        try {
+          window.mega.API.getGlobalApi().userAgent = null;
+          logToScreen("API browser optimization initialized.");
+        } catch (uaErr) {
+          console.warn("Failed to set userAgent to null", uaErr);
+        }
+
+        // Standardize folder URL (handle folder hashtag format replacement)
+        let formattedUrl = url.trim();
+        // Handle newer link schemas /folder/ -> /#F! format if needed, but megajs handles both beautifully
+        logToScreen(`Fetching shared attributes for: ${formattedUrl.split('#')[0]}`);
+        
+        const folder = window.mega.File.fromURL(formattedUrl);
+        
+        // Load folder details and children
+        await new Promise((resolve, reject) => {
+          folder.loadAttributes((err, loadedFolder) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(loadedFolder);
+            }
+          });
+        });
+        
+        state.rootFolder = folder;
+        state.currentFolder = folder;
+        state.navigationHistory = [];
+        state.folderName = folder.name || "Public Music Directory";
+        elements.folderNameDisplay.innerText = state.folderName;
+        logToScreen(`Success! Directory name: "${state.folderName}"`);
+        
+        logToScreen("Scanning folder structure and indexing audio files...");
+        state.allFiles = getAllFilesRecursive(folder);
+        
+        logToScreen(`Filter resolved: ${state.allFiles.length} valid MP3 audio tracks available.`);
+        elements.totalFilesDisplay.innerText = state.allFiles.length;
+        
+        state.loading = false;
+        elements.loadingOverlay.classList.add('hidden');
+        
+        showToast(`Successfully scanned ${state.allFiles.length} MP3 files!`, 'success');
+        
+        // Build initial view
+        updateFilteredFiles();
+        
+      } catch (err) {
+        console.error("Scanning Error: ", err);
+        state.loading = false;
+        state.error = err.message || err.toString() || "Connection timeout.";
+        elements.loadingOverlay.classList.add('hidden');
+        elements.errorOverlay.classList.remove('hidden');
+        elements.errorMessageDisplay.innerText = `Detailed diagnostics: ${state.error}. Please ensure the public folder link is fully valid and has not expired.`;
+        showToast("Scans failed! See error block.", "error");
+      }
+    }
+
+    // --- Folder Navigation Actions ---
+    function enterFolder(encodedName) {
+      const folderName = decodeURIComponent(encodedName);
+      if (!state.currentFolder || !state.currentFolder.children) return;
+      const subfolder = state.currentFolder.children.find(f => f.name === folderName && f.directory);
+      if (subfolder) {
+        state.navigationHistory.push(state.currentFolder);
+        state.currentFolder = subfolder;
+        state.currentPage = 1;
+        updateFilteredFiles();
+        showToast(`Entered folder: "${folderName}"`, 'success');
+      }
+    }
+
+    function goBack() {
+      if (state.navigationHistory.length > 0) {
+        state.currentFolder = state.navigationHistory.pop();
+        state.currentPage = 1;
+        updateFilteredFiles();
+        showToast(`Returned to parent folder`, 'success');
+      }
+    }
+
+    function goToRoot() {
+      if (state.navigationHistory.length > 0) {
+        state.currentFolder = state.rootFolder;
+        state.navigationHistory = [];
+        state.currentPage = 1;
+        updateFilteredFiles();
+        showToast(`Returned to Start Folder`, 'success');
+      }
+    }
+
+    // Expose functions globally for inline onclick execution
+    window.enterFolder = enterFolder;
+    window.goBack = goBack;
+    window.goToRoot = goToRoot;
+
+    // --- Filtering, Sorting, and State Syncing ---
+    function updateFilteredFiles() {
+      if (!state.currentFolder) return;
+      
+      let subfolders = [];
+      let files = [];
+      
+      if (state.searchQuery) {
+        // Recursive search for matching files
+        const allFiles = getAllFilesRecursive(state.currentFolder);
+        const query = state.searchQuery.toLowerCase();
+        files = allFiles.filter(f => f.name && f.name.toLowerCase().includes(query));
+      } else {
+        // Immediate children under the current directory
+        const children = state.currentFolder.children || [];
+        children.forEach(item => {
+          if (item.directory) {
+            subfolders.push(item);
+          } else if (item.name && item.name.toLowerCase().endsWith('.mp3')) {
+            files.push(item);
+          }
+        });
+        
+        // Sort subfolders alphabetically (A-Z)
+        subfolders.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      }
+      
+      // Apply Sort on files
+      if (state.sortBy === 'name-asc') {
+        files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      } else if (state.sortBy === 'name-desc') {
+        files.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' }));
+      } else if (state.sortBy === 'size-desc') {
+        files.sort((a, b) => (b.size || 0) - (a.size || 0));
+      } else if (state.sortBy === 'size-asc') {
+        files.sort((a, b) => (a.size || 0) - (b.size || 0));
+      }
+      
+      // Combine subfolders and files
+      state.filteredFiles = [...subfolders, ...files];
+      
+      // Update stats displays
+      elements.totalFilesDisplay.innerText = countFilesRecursive(state.currentFolder);
+      
+      // Ensure page fits bounds
+      const sizeVal = state.pageSize === 'all' ? state.filteredFiles.length : parseInt(state.pageSize);
+      const maxPages = Math.max(1, Math.ceil(state.filteredFiles.length / (sizeVal || 1)));
+      if (state.currentPage > maxPages) {
+        state.currentPage = maxPages;
+      }
+      
+      render();
+    }
+
+    // --- View Rendering Engine ---
+    function render() {
+      // Update Active Directory Display with path or current folder name
+      if (state.currentFolder) {
+        const folderNavControls = document.getElementById('folderNavControls');
+        if (state.navigationHistory.length === 0) {
+          elements.folderNameDisplay.innerText = state.folderName || state.currentFolder.name || "Start Folder";
+          if (folderNavControls) folderNavControls.classList.add('hidden');
+        } else {
+          // Construct breadcrumb text or path
+          const pathParts = ['Start Folder', ...state.navigationHistory.slice(1).map(f => f.name), state.currentFolder.name];
+          elements.folderNameDisplay.innerText = pathParts.join(' / ');
+          if (folderNavControls) folderNavControls.classList.remove('hidden');
+        }
+      }
+
+      // Toggle display wrappers
+      const showEmpty = state.filteredFiles.length === 0;
+      if (showEmpty && state.navigationHistory.length === 0) {
+        elements.filesContent.classList.add('hidden');
+        elements.emptyOverlay.classList.remove('hidden');
+        return;
+      }
+      
+      elements.emptyOverlay.classList.add('hidden');
+      elements.filesContent.classList.remove('hidden');
+      
+      // Pagination logic limits
+      const isAll = state.pageSize === 'all';
+      const size = isAll ? Math.max(1, state.filteredFiles.length) : parseInt(state.pageSize);
+      const startIdx = (state.currentPage - 1) * size;
+      const endIdx = Math.min(startIdx + size, state.filteredFiles.length);
+      const paginatedFiles = state.filteredFiles.slice(startIdx, endIdx);
+      
+      // Render Table rows
+      elements.filesTableBody.innerHTML = '';
+      
+      // Prepend "Up One Level" row if we are in a subfolder and on the first page
+      if (state.currentPage === 1 && state.navigationHistory.length > 0) {
+        const upRow = document.createElement('tr');
+        upRow.className = "hover:bg-slate-900/45 transition-colors border-b border-slate-900/30 cursor-pointer";
+        upRow.onclick = () => goBack();
+        upRow.innerHTML = `
+          <td class="py-4 px-6 text-center font-mono text-xs text-slate-500">
+            <i data-lucide="corner-left-up" class="w-4 h-4 mx-auto text-violet-400 animate-pulse"></i>
+          </td>
+          <td class="py-4 px-4 sm:px-6 font-semibold text-slate-300" colspan="2">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center shrink-0">
+                <i data-lucide="folder-up" class="w-4 h-4"></i>
+              </div>
+              <div class="text-sm">.. (Up One Level)</div>
+            </div>
+          </td>
+          <td class="py-4 px-6 text-right">
+            <span class="text-xs text-slate-500 italic mr-2">Go back to parent directory</span>
+          </td>
+        `;
+        elements.filesTableBody.appendChild(upRow);
+      }
+
+      paginatedFiles.forEach((file, index) => {
+        const globalIndex = startIdx + index + 1;
+        const row = document.createElement('tr');
+        
+        if (file.directory) {
+          // Render Subfolder Row
+          row.className = `hover:bg-indigo-950/20 transition-colors border-b border-slate-900/30 bg-indigo-950/5`;
+          
+          const itemsCount = file.children ? file.children.filter(c => c.directory || (c.name && c.name.toLowerCase().endsWith('.mp3'))).length : 0;
+          const displayCount = `${itemsCount} item${itemsCount !== 1 ? 's' : ''}`;
+          const dispFolderName = highlightQuery(file.name, state.searchQuery);
+          
+          row.innerHTML = `
+            <td class="py-4 px-6 text-center font-mono text-xs text-indigo-400">
+              <i data-lucide="folder" class="w-4 h-4 mx-auto"></i>
+            </td>
+            <td class="py-4 px-4 sm:px-6 font-semibold text-indigo-300">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-950/30 border border-indigo-900/40 text-indigo-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="folder" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-sm truncate max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl pr-2 cursor-pointer hover:underline font-bold text-indigo-200" 
+                       title="${file.name.replace(/"/g, '&quot;')}"
+                       data-folder-name="${encodeURIComponent(file.name)}"
+                       onclick="enterFolder(this.dataset.folderName)">
+                    ${dispFolderName}
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono mt-0.5 md:hidden">Size: ${displayCount}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-4 px-4 text-center font-mono text-xs text-slate-400 hidden md:table-cell">${displayCount}</td>
+            <td class="py-4 px-6 text-right">
+              <button data-folder-name="${encodeURIComponent(file.name)}"
+                      onclick="enterFolder(this.dataset.folderName)"
+                      class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 hover:text-white border border-indigo-500/20 hover:border-indigo-500/40 transition-all flex items-center gap-1.5 ml-auto">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                <span>Open Folder</span>
+              </button>
+            </td>
+          `;
+        } else {
+          // Render File Row
+          const isCached = state.blobCache[file.name] !== undefined;
+          const downloadPercent = state.activeDownloads[file.name];
+          const isDownloading = downloadPercent !== undefined;
+          
+          row.className = `hover:bg-slate-900/45 transition-colors border-b border-slate-900/30 ${isCached ? 'bg-violet-950/5' : ''}`;
+          
+          // Name highlight
+          const dispName = highlightQuery(file.name, state.searchQuery);
+          const formatSize = formatBytes(file.size);
+          
+          // Build Action buttons markup based on status
+          let buttonsHtml = '';
+          
+          if (isDownloading) {
+            // Progress bar spinner
+            buttonsHtml = `
+              <div class="flex items-center justify-end gap-3 w-full">
+                <div class="flex items-center gap-2 text-xs font-semibold text-violet-400">
+                  <div class="w-4 h-4 rounded-full border-2 border-violet-500/20 border-t-violet-400 animate-spin"></div>
+                  <span>Downloading (${downloadPercent}%)</span>
+                </div>
+              </div>
+            `;
+          } else {
+            // Preview button
+            const previewBtnClass = isCached 
+              ? 'bg-violet-950 text-violet-400 border border-violet-900/60 hover:bg-violet-900/40' 
+              : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 hover:bg-slate-900';
+            
+            const previewText = isCached ? 'Play Now' : 'Preview';
+            const previewIcon = isCached ? 'play-circle' : 'play';
+            
+            buttonsHtml = `
+              <div class="flex items-center justify-end gap-2.5">
+                <!-- Preview/Play -->
+                <button data-file-name="${encodeURIComponent(file.name)}"
+                        onclick="handlePreview(this.dataset.fileName)" 
+                        class="px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${previewBtnClass}">
+                  <i data-lucide="${previewIcon}" class="w-3.5 h-3.5"></i>
+                  <span>${previewText}</span>
+                </button>
+                
+                <!-- Download -->
+                <button data-file-name="${encodeURIComponent(file.name)}"
+                        onclick="handleDownload(this.dataset.fileName)" 
+                        class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 hover:text-white border border-violet-500/20 hover:border-violet-500/40 transition-all flex items-center gap-1.5">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span>Download</span>
+                </button>
+              </div>
+            `;
+          }
+          
+          row.innerHTML = `
+            <td class="py-4 px-6 text-center font-mono text-xs text-slate-500">${globalIndex}</td>
+            <td class="py-4 px-4 sm:px-6 font-medium text-slate-200">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg ${isCached ? 'bg-violet-500/10 border border-violet-500/20 text-violet-400' : 'bg-slate-900 border border-slate-800 text-slate-400'} flex items-center justify-center shrink-0">
+                  <i data-lucide="music" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-sm truncate max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl pr-2" title="${file.name.replace(/"/g, '&quot;')}">${dispName}</div>
+                  <div class="text-[10px] text-slate-500 font-mono mt-0.5 md:hidden">Size: ${formatSize}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-4 px-4 text-center font-mono text-xs text-slate-400 hidden md:table-cell">${formatSize}</td>
+            <td class="py-4 px-6 text-right">${buttonsHtml}</td>
+          `;
+        }
+        
+        elements.filesTableBody.appendChild(row);
+      });
+      
+      // Update pagination info text
+      elements.paginationInfo.innerHTML = `
+        Showing <span class="font-semibold text-slate-200">${startIdx + 1}</span> to <span class="font-semibold text-slate-200">${endIdx}</span> of <span class="font-semibold text-slate-200">${state.filteredFiles.length}</span> items
+      `;
+      
+      // Render pagination numbers
+      elements.paginationControls.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(state.filteredFiles.length / size));
+      
+      if (totalPages > 1) {
+        // Prev button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = `w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 transition-colors ${state.currentPage === 1 ? 'opacity-40 pointer-events-none' : ''}`;
+        prevBtn.innerHTML = `<i data-lucide="chevron-left" class="w-4 h-4"></i>`;
+        prevBtn.onclick = () => { if (state.currentPage > 1) { state.currentPage--; render(); } };
+        elements.paginationControls.appendChild(prevBtn);
+        
+        // Pages list
+        const pagesRange = getPaginationRange(state.currentPage, totalPages);
+        pagesRange.forEach(page => {
+          if (page === '...') {
+            const span = document.createElement('span');
+            span.className = 'w-8 text-center text-slate-600 text-xs font-semibold';
+            span.innerText = '...';
+            elements.paginationControls.appendChild(span);
+          } else {
+            const btn = document.createElement('button');
+            const isActive = page === state.currentPage;
+            btn.className = `w-8 h-8 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center ${isActive ? 'bg-violet-600 border-violet-500 text-white shadow-md shadow-violet-600/10' : 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'}`;
+            btn.innerText = page;
+            btn.onclick = () => { state.currentPage = page; render(); };
+            elements.paginationControls.appendChild(btn);
+          }
+        });
+        
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = `w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 transition-colors ${state.currentPage === totalPages ? 'opacity-40 pointer-events-none' : ''}`;
+        nextBtn.innerHTML = `<i data-lucide="chevron-right" class="w-4 h-4"></i>`;
+        nextBtn.onclick = () => { if (state.currentPage < totalPages) { state.currentPage++; render(); } };
+        elements.paginationControls.appendChild(nextBtn);
+      }
+      
+      lucide.createIcons();
+    }
+
+    // Generate pagination range layout helper (e.g., 1 ... 4 5 6 ... 40)
+    function getPaginationRange(current, total) {
+      const range = [];
+      const delta = 1; // pages before and after current
+      
+      for (let i = 1; i <= total; i++) {
+        if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+          range.push(i);
+        } else if (range[range.length - 1] !== '...') {
+          range.push('...');
+        }
+      }
+      return range;
+    }
+
+    // --- Decryption & Download core engine ---
+    async function downloadFile(file) {
+      // Return cached item if available
+      if (state.blobCache[file.name]) {
+        return state.blobCache[file.name];
+      }
+      
+      let downloadStream = file.download();
+      // Handle older megajs promise wrapping standard
+      if (downloadStream instanceof Promise || (downloadStream && typeof downloadStream.then === 'function')) {
+        downloadStream = await downloadStream;
+      }
+      
+      return new Promise((resolve, reject) => {
+        const chunks = [];
+        let loadedBytes = 0;
+        const totalBytes = file.size || 0;
+        
+        // Event listeners
+        downloadStream.on('data', (chunk) => {
+          chunks.push(chunk);
+          loadedBytes += chunk.length;
+          
+          // Backup percentage computation if stream progress event fails
+          if (state.activeDownloads[file.name] !== undefined) {
+            const pct = totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0;
+            updateFileProgress(file.name, pct);
+          }
+        });
+        
+        downloadStream.on('progress', (info) => {
+          const pct = info.bytesTotal > 0 ? Math.round((info.bytesLoaded / info.bytesTotal) * 100) : 0;
+          updateFileProgress(file.name, pct);
+        });
+        
+        downloadStream.on('end', () => {
+          const blob = new Blob(chunks, { type: 'audio/mpeg' });
+          const url = URL.createObjectURL(blob);
+          state.blobCache[file.name] = url; // Cache URL mapped by name
+          resolve(url);
+        });
+        
+        downloadStream.on('error', (err) => {
+          reject(err);
+        });
+      });
+    }
+
+    // Update ongoing progress map and refresh partial view elements
+    function updateFileProgress(fileName, percent) {
+      state.activeDownloads[fileName] = percent;
+      
+      // Update inline rows dynamically if they are currently rendered on screen
+      // This avoids heavy DOM rebuilds during rapid progress events!
+      const activeRows = document.querySelectorAll('#filesTableBody tr');
+      // Look for a match
+      activeRows.forEach(row => {
+        const label = row.querySelector('[title]');
+        if (label && label.getAttribute('title') === fileName) {
+          const actionContainer = row.querySelector('td:last-child');
+          if (actionContainer) {
+            actionContainer.innerHTML = `
+              <div class="flex items-center justify-end gap-3 w-full">
+                <div class="flex items-center gap-2 text-xs font-semibold text-violet-400">
+                  <div class="w-4 h-4 rounded-full border-2 border-violet-500/20 border-t-violet-400 animate-spin"></div>
+                  <span>Downloading (${percent}%)</span>
+                </div>
+              </div>
+            `;
+          }
+        }
+      });
+    }
+
+    // --- Action Handlers ---
+    
+    // Download Trigger
+    async function handleDownload(encodedName) {
+      const fileName = decodeURIComponent(encodedName);
+      const file = state.allFiles.find(f => f.name === fileName);
+      if (!file) return;
+      
+      if (state.activeDownloads[fileName] !== undefined) {
+        showToast("Track download is already in progress.", "warning");
+        return;
+      }
+      
+      showToast(`Started downloading "${fileName}"...`, 'info');
+      state.activeDownloads[fileName] = 0;
+      
+      try {
+        const url = await downloadFile(file);
+        
+        // Trigger browser save-as popup
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        delete state.activeDownloads[fileName];
+        render(); // redraw table to show cached state and clear downloading
+        showToast(`"${fileName}" downloaded successfully!`, 'success');
+      } catch (err) {
+        console.error("Download fail:", err);
+        delete state.activeDownloads[fileName];
+        render();
+        showToast(`Failed to download "${fileName}": ${err.message || err}`, 'error');
+      }
+    }
+
+    // Preview Player Trigger
+    async function handlePreview(encodedName) {
+      const fileName = decodeURIComponent(encodedName);
+      const file = state.allFiles.find(f => f.name === fileName);
+      if (!file) return;
+      
+      if (state.activeDownloads[fileName] !== undefined) {
+        showToast("Audio track is currently loading.", "warning");
+        return;
+      }
+      
+      state.previewingFile = file;
+      
+      // If already cached, open modal instantly!
+      if (state.blobCache[fileName]) {
+        openModal(state.blobCache[fileName]);
+        return;
+      }
+      
+      showToast(`Loading preview for "${fileName}"...`, 'info');
+      state.activeDownloads[fileName] = 0;
+      
+      try {
+        const url = await downloadFile(file);
+        delete state.activeDownloads[fileName];
+        render(); // redraw
+        openModal(url);
+      } catch (err) {
+        console.error("Preview load fail:", err);
+        delete state.activeDownloads[fileName];
+        render();
+        showToast(`Failed to load audio preview: ${err.message || err}`, 'error');
+      }
+    }
+
+    // --- Modal View Management ---
+    function openModal(url) {
+      const file = state.previewingFile;
+      if (!file) return;
+      
+      elements.modalTrackTitle.innerText = file.name;
+      elements.modalTrackSize.innerText = `Size: ${formatBytes(file.size)}`;
+      
+      // Load source in player and play
+      elements.audioPlayer.src = url;
+      elements.audioPlayer.play().catch(e => console.warn("Auto-playback policy triggered: ", e));
+      
+      // Reset visual state
+      elements.visualizerContainer.classList.remove('playing');
+      elements.vinylDisc.style.animationPlayState = 'paused';
+      
+      // Bind visual animations to audio player states
+      elements.audioPlayer.onplay = () => {
+        elements.visualizerContainer.classList.add('playing');
+        elements.vinylDisc.style.animationPlayState = 'running';
+      };
+      elements.audioPlayer.onpause = () => {
+        elements.visualizerContainer.classList.remove('playing');
+        elements.vinylDisc.style.animationPlayState = 'paused';
+      };
+      elements.audioPlayer.onended = () => {
+        elements.visualizerContainer.classList.remove('playing');
+        elements.vinylDisc.style.animationPlayState = 'paused';
+      };
+      
+      // Bind inline download button
+      elements.modalDownloadBtn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast("Track download complete!", "success");
+      };
+      
+      // Modal transition animations
+      elements.previewModal.classList.remove('pointer-events-none', 'opacity-0');
+      elements.previewModal.classList.add('opacity-100');
+      elements.modalDialogBox.classList.remove('scale-95');
+      elements.modalDialogBox.classList.add('scale-100');
+      
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      // Pause player
+      elements.audioPlayer.pause();
+      elements.audioPlayer.src = '';
+      
+      elements.previewModal.classList.add('pointer-events-none', 'opacity-0');
+      elements.previewModal.classList.remove('opacity-100');
+      elements.modalDialogBox.classList.add('scale-95');
+      elements.modalDialogBox.classList.remove('scale-100');
+      
+      state.previewingFile = null;
+    }
+
+    // --- Interactive Observers & Event Listeners ---
+    
+    // Toggle configuration box
+    elements.toggleSettingsBtn.onclick = () => {
+      elements.settingsPanel.classList.toggle('hidden');
+    };
+    elements.toggleSettingsErrorBtn.onclick = () => {
+      elements.settingsPanel.classList.remove('hidden');
+      elements.settingsPanel.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Reload directory link
+    elements.loadFolderBtn.onclick = () => {
+      const url = elements.megaFolderUrlInput.value.trim();
+      if (!url) {
+        showToast("Please enter a valid MEGA folder URL", "error");
+        return;
+      }
+      state.folderUrl = url;
+      loadMegaFolder(url);
+    };
+
+    // Search bar filtering
+    elements.searchInput.oninput = (e) => {
+      state.searchQuery = e.target.value.trim();
+      if (state.searchQuery) {
+        elements.clearSearchBtn.classList.remove('hidden');
+      } else {
+        elements.clearSearchBtn.classList.add('hidden');
+      }
+      state.currentPage = 1; // reset page back to 1 on input
+      updateFilteredFiles();
+    };
+
+    elements.clearSearchBtn.onclick = () => {
+      elements.searchInput.value = '';
+      state.searchQuery = '';
+      elements.clearSearchBtn.classList.add('hidden');
+      state.currentPage = 1;
+      updateFilteredFiles();
+    };
+
+    // Select toggles
+    elements.sortSelect.onchange = (e) => {
+      state.sortBy = e.target.value;
+      updateFilteredFiles();
+    };
+
+    elements.pageSizeSelect.onchange = (e) => {
+      state.pageSize = e.target.value;
+      state.currentPage = 1;
+      updateFilteredFiles();
+    };
+
+    // Retry controls
+    elements.retryBtn.onclick = () => {
+      loadMegaFolder(state.folderUrl);
+    };
+
+    // Modal close listeners
+    elements.modalCloseBtn.onclick = closeModal;
+    elements.backToPageBtn.onclick = closeModal;
+    elements.modalCloseBg.onclick = closeModal;
+    
+    // Keyboard accessibility listeners (ESC key to close modal)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.previewingFile) {
+        closeModal();
+      }
+    });
+
+    // --- App Launch sequence ---
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      // Initialize scanner on default public folder link
+      loadMegaFolder(state.folderUrl);
+    });
+  </script>
+</body>
+</html>
